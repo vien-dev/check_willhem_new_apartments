@@ -1,6 +1,6 @@
 # check_willhem_new_apartments
-A small util to scan willhem housing site periodically then mail back to receiver
-The reason for it is simply because the website doesn't support configuring notification for new apartments while I really want to be the first person apply for new apartment(s).
+A small util to scan willhem housing site periodically then mail back to receiver\
+The reason for it is simply because the website doesn't support configuring notification for new apartments while I really want to be the first person apply for new one(s).
 
 In order to use the script, some environment variables are needed:
 1. SENDER_MAIL: gmail address of the sender. Sorry, only gmail option is supported currently
