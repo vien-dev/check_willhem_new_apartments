@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 import shutil
 import smtplib
+import time
 
 message_template="""\
 From: {0}
@@ -56,7 +57,7 @@ def read_apartment_detail(apartment_file):
         elevator = 'No'
     return (rental_cost, total_room, floor, elevator)
     
-def send_mail():
+def send_mail(total_apartment, apartment_list):
     date_str = datetime.today().strftime('%Y-%m-%d')
     sender_email=os.environ['SENDER_MAIL']
     sender_password=os.environ['SENDER_MAIL_PWD']
@@ -85,45 +86,49 @@ def send_mail():
     s.quit() 
 
 
-if os.path.exists('previous'):
-    shutil.rmtree('previous')
-if os.path.exists('current'):
-    shutil.copytree('current','previous')
-    shutil.rmtree('current')
-else:
-    os.mkdir('previous')
+def main():
+    if os.path.exists('previous'):
+        shutil.rmtree('previous')
+    if os.path.exists('current'):
+        shutil.copytree('current','previous')
+        shutil.rmtree('current')
+    else:
+        os.mkdir('previous')
 
-os.mkdir('current')
+    os.mkdir('current')
 
-willhem_url='https://www.willhem.se'
-willhem_main_page='/sok-bostad/Goteborg/'
-apartment_pattern1 = re.compile('Mer info och intresseanmälan')
-apartment_pattern2 = re.compile('/sok-bostad/Goteborg/[a-z,A-Z,0-9,-]+/')
+    willhem_url='https://www.willhem.se'
+    willhem_main_page='/sok-bostad/Goteborg/'
+    apartment_pattern1 = re.compile('Mer info och intresseanmälan')
+    apartment_pattern2 = re.compile('/sok-bostad/Goteborg/[a-z,A-Z,0-9,-]+/')
 
-apartment_list = ""
-total_apartment = 0
-urllib.request.urlretrieve("{0}{1}".format(willhem_url, willhem_main_page), "willhem_sok_bostad_main_page.temp.html")
-with open('willhem_sok_bostad_main_page.temp.html', 'r') as f:
-    for line in f:
-        if apartment_pattern1.search(line):
-            m = apartment_pattern2.search(line)
-            apartment_sublink = m.group()
-            if not os.path.isfile("previous/{0}.temp.html".format(apartment_sublink.split('/')[3])):
-                apartment_full_url = "{0}{1}".format(willhem_url, apartment_sublink)
-                urllib.request.urlretrieve(apartment_full_url, "current/{0}.temp.html".format(apartment_sublink.split('/')[3]))
-                rental_cost, total_room, floor, elevator = read_apartment_detail("current/{0}.temp.html".format(apartment_sublink.split('/')[3]))
-                # We consider apartments with more than 1 room only
-                if int(total_room) <= 1:
-                    continue
-                total_apartment += 1
-                apartment_text = apartment_template.format(apartment_full_url, rental_cost, total_room, floor, elevator, total_apartment)
-                apartment_list = apartment_list + apartment_text
-            else:
-                shutil.copy("previous/{0}.temp.html".format(apartment_sublink.split('/')[3]),"current/{0}.temp.html".format(apartment_sublink.split('/')[3]))
-            
-
-if "" != apartment_list:
-    print("Found {} new apartment(s). Sending mail".format(total_apartment))
-    send_mail()
-else:
-    print("There's no new apartment on this scan")
+    apartment_list = ""
+    total_apartment = 0
+    urllib.request.urlretrieve("{0}{1}".format(willhem_url, willhem_main_page), "willhem_sok_bostad_main_page.temp.html")
+    with open('willhem_sok_bostad_main_page.temp.html', 'r') as f:
+        for line in f:
+            if apartment_pattern1.search(line):
+                m = apartment_pattern2.search(line)
+                apartment_sublink = m.group()
+                if not os.path.isfile("previous/{0}.temp.html".format(apartment_sublink.split('/')[3])):
+                    apartment_full_url = "{0}{1}".format(willhem_url, apartment_sublink)
+                    urllib.request.urlretrieve(apartment_full_url, "current/{0}.temp.html".format(apartment_sublink.split('/')[3]))
+                    rental_cost, total_room, floor, elevator = read_apartment_detail("current/{0}.temp.html".format(apartment_sublink.split('/')[3]))
+                    # We consider apartments with more than 1 room only
+                    if int(total_room) <= 1:
+                        continue
+                    total_apartment += 1
+                    apartment_text = apartment_template.format(apartment_full_url, rental_cost, total_room, floor, elevator, total_apartment)
+                    apartment_list = apartment_list + apartment_text
+                else:
+                    shutil.copy("previous/{0}.temp.html".format(apartment_sublink.split('/')[3]),"current/{0}.temp.html".format(apartment_sublink.split('/')[3]))
+    if (0 != total_apartment):            
+        send_mail(total_apartment, apartment_list)
+ 
+while True:
+    main()
+    try:
+        time.sleep(900)
+    except KeyboardInterrupt:
+        print("Interrupt received. Exit!")
+        quit()
